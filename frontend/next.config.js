@@ -3,10 +3,11 @@ const nextConfig = {
   output: 'standalone',
   reactStrictMode: true,
   async rewrites() {
+    // API_URL is a server-side-only variable; it is never bundled into the client.
     return [
       {
         source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api'}/:path*`,
+        destination: `${process.env.API_URL ?? 'http://localhost:4000/api'}/:path*`,
       },
     ];
   },
