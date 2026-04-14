@@ -1,0 +1,41 @@
+# ──────────────────────────────────────────────────────────────
+# Railway Monorepo Configuration
+# Each [[services]] block maps to one Railway service.
+# Set the same variables in the Railway dashboard under each
+# service → Variables.
+# ──────────────────────────────────────────────────────────────
+
+[build]
+builder = "dockerfile"
+
+# ── Backend ────────────────────────────────────────────────────
+[[services]]
+name = "backend"
+rootDirectory = "backend"
+
+[services.build]
+builder       = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[services.deploy]
+startCommand = "node dist/main"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 10
+restartPolicyType = "on-failure"
+restartPolicyMaxRetries = 3
+
+# ── Frontend ───────────────────────────────────────────────────
+[[services]]
+name = "frontend"
+rootDirectory = "frontend"
+
+[services.build]
+builder        = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[services.deploy]
+startCommand = "node server.js"
+healthcheckPath = "/"
+healthcheckTimeout = 10
+restartPolicyType = "on-failure"
+restartPolicyMaxRetries = 3
