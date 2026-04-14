@@ -1,87 +1,176 @@
 # SitePilot Backend
 
-SaaS backend for website automation, SEO and AI tools. Built with NestJS + TypeORM + PostgreSQL.
+Production-ready SaaS backend for website automation, SEO and AI tools.
+Built with **NestJS 10 + TypeORM + PostgreSQL**.
+
+---
 
 ## Stack
 
-- **Runtime**: Node.js 20, TypeScript
-- **Framework**: NestJS 10
-- **Database**: PostgreSQL via TypeORM
-- **Auth**: JWT (passport-jwt) + bcrypt
-- **Deployment**: Railway / Docker
-
-## Modules
-
-| Module | Endpoints |
+| Layer | Technology |
 |---|---|
-| **auth** | `POST /auth/register`, `POST /auth/login`, `GET /auth/me` |
-| **users** | `GET /users/me`, `PATCH /users/me`, `DELETE /users/me` |
-| **projects** | `GET/POST /projects`, `GET/PATCH/DELETE /projects/:id` |
-| **pages** | `GET/POST /projects/:projectId/pages`, `GET/PATCH/DELETE /projects/:projectId/pages/:id` |
-| **publish** | `POST /publish/project/:id` |
-| **billing** | `GET /billing/subscription`, `PATCH /billing/plan` |
-| **health** | `GET /health` |
+| Runtime | Node.js 20, TypeScript 5 |
+| Framework | NestJS 10 |
+| Database | PostgreSQL 16 via TypeORM |
+| Auth | JWT (passport-jwt) + bcrypt |
+| Docs | Swagger UI @ `/api/docs` |
+| Deployment | Railway / Docker |
 
-## Quick Start
+---
 
-### Prerequisites
-- Node.js 20+
-- PostgreSQL 14+
+## Modules & Endpoints
 
-### Local Development
+| Module | Base path | Description |
+|---|---|---|
+| **health** | `GET /health` | App and DB liveness check |
+| **auth** | `POST /auth/register` `POST /auth/login` `GET /auth/me` | JWT-based authentication |
+| **users** | `/users/me` | Profile management |
+| **projects** | `/projects` | Full CRUD, user-scoped |
+| **pages** | `/projects/:projectId/pages` | Full CRUD, nested under project |
+| **publish** | `POST /publish/project/:id` | Publish project, persist state |
+| **billing** | `/billing/subscription` `/billing/plan` | Plan management (Stripe-ready) |
+
+All protected routes require `Authorization: Bearer <token>` header.
+
+---
+
+## Quickstart — One-command local dev
+
+### Option A: Native PostgreSQL (if already installed)
 
 ```bash
-# 1. Clone and install
+# Start postgres, create DB and user
+service postgresql start
+sudo -u postgres psql -c "CREATE USER sitepilot WITH PASSWORD 'sitepilot';"
+sudo -u postgres psql -c "CREATE DATABASE sitepilot OWNER sitepilot;"
+
+# Clone, install, seed
+cp .env.example .env    # already configured for local postgres
 npm install
+npm run db:seed         # creates admin@sitepilot.local / password123
+npm run start:dev       # http://localhost:3000
+```
 
-# 2. Configure environment
+### Option B: Docker Compose
+
+```bash
 cp .env.example .env
-# Edit .env — set DB credentials and JWT_SECRET
-
-# 3. Create database
-createdb sitepilot
-
-# 4. Start dev server (auto-syncs schema)
+npm install
+npm run dev:db          # starts postgres container (docker compose)
+# wait ~5 seconds for postgres to be healthy
+npm run db:seed
 npm run start:dev
 ```
 
-App will be available at `http://localhost:3000`.
-
-### Environment Variables
-
-| Variable | Required | Description |
-|---|---|---|
-| `DATABASE_URL` | * | Full PostgreSQL URL (Railway provides this automatically) |
-| `DB_HOST` | local | Postgres host (if not using DATABASE_URL) |
-| `DB_PORT` | local | Postgres port (default: 5432) |
-| `DB_USER` | local | Postgres username |
-| `DB_PASSWORD` | local | Postgres password |
-| `DB_NAME` | local | Database name |
-| `JWT_SECRET` | required | Secret for signing JWTs — **change in production** |
-| `JWT_EXPIRES_IN` | optional | Token TTL (default: `7d`) |
-| `PORT` | optional | Server port (default: `3000`) |
-| `NODE_ENV` | optional | `development` or `production` |
-| `CORS_ORIGIN` | optional | Allowed origin(s), comma-separated or `*` |
-
-### Database Schema
-
-Schema is auto-synchronized in development (`synchronize: true`). In production set `NODE_ENV=production` to disable auto-sync and use migrations instead.
-
-## Deploy to Railway
-
-1. Create a new Railway project
-2. Add a **PostgreSQL** plugin — `DATABASE_URL` is injected automatically
-3. Set environment variables: `JWT_SECRET`, `NODE_ENV=production`
-4. Railway auto-detects the `Dockerfile` and builds
-
-## Build & Production
+### Fastest test (2 commands after npm install):
 
 ```bash
-npm run build          # compile TypeScript to dist/
-npm run start:prod     # run compiled output
+npm run dev:db && sleep 5 && npm run start:dev
 ```
 
-## Plans
+---
+
+## All Available Scripts
+
+```bash
+# Development
+npm run start:dev       # start with hot-reload (dev)
+npm run start:prod      # run compiled output (production)
+npm run dev             # alias for start:dev
+npm run build           # compile TypeScript → dist/
+
+# Docker
+npm run dev:db          # start postgres container only
+npm run dev:up          # start all services (postgres)
+npm run dev:down        # stop all containers
+
+# Database
+npm run db:seed         # seed demo user + project + page
+npm run db:migrate:run  # run pending TypeORM migrations
+npm run db:migrate:revert    # revert last migration
+# npm run db:migrate:generate --name=MigrationName  # generate new migration
+```
+
+---
+
+## Environment Variables
+
+Copy `.env.example` to `.env`. All defaults work for local dev out of the box.
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `PORT` | no | `3000` | HTTP port |
+| `NODE_ENV` | no | `development` | `development` or `production` |
+| `DATABASE_URL` | Railway | — | Full postgres URL (Railway auto-injects) |
+| `DB_HOST` | local | `localhost` | Postgres host |
+| `DB_PORT` | local | `5432` | Postgres port |
+| `DB_USER` | local | `sitepilot` | Postgres username |
+| `DB_PASSWORD` | local | `sitepilot` | Postgres password |
+| `DB_NAME` | local | `sitepilot` | Database name |
+| `JWT_SECRET` | **required** | *(placeholder)* | **Change before production!** |
+| `JWT_EXPIRES_IN` | no | `7d` | Token lifetime |
+| `CORS_ORIGIN` | no | `*` | Frontend origin(s), comma-separated |
+
+> **Before production:** generate a secure JWT_SECRET with `openssl rand -hex 32`
+
+---
+
+## Swagger API Docs
+
+Available at **[http://localhost:3000/api/docs](http://localhost:3000/api/docs)** in development.
+
+Click **Authorize** → enter your `Bearer <token>` to test protected routes interactively.
+
+---
+
+## Database
+
+### Schema sync (development)
+`synchronize: true` in dev — TypeORM auto-syncs schema on startup. Fine for development.
+
+### Migrations (production)
+`synchronize: false` when `NODE_ENV=production`. Use:
+
+```bash
+# Generate migration after entity changes
+npm run db:migrate:generate --name=AddColumnToProjects
+
+# Apply
+npm run db:migrate:run
+
+# Rollback
+npm run db:migrate:revert
+```
+
+---
+
+## Data Model
+
+```
+User
+ ├── id, email, password(hashed), name, role(user|admin)
+ ├── subscription → Subscription (1:1)
+ └── projects → Project[] (1:many)
+
+Project
+ ├── id, name, description, slug, userId
+ ├── isPublished, publishedUrl
+ └── pages → Page[] (1:many)
+
+Page
+ ├── id, title, slug, content(jsonb), projectId
+ ├── isPublished, order, metaTitle, metaDescription
+ └── (FK → Project, cascades on delete)
+
+Subscription
+ ├── id, userId, plan(free|pro|agency)
+ ├── isActive, stripeCustomerId, stripeSubscriptionId, currentPeriodEnd
+ └── (FK → User, cascades on delete)
+```
+
+---
+
+## Billing & Plans
 
 | Plan | Value |
 |---|---|
@@ -89,34 +178,101 @@ npm run start:prod     # run compiled output
 | `pro` | Future paid tier |
 | `agency` | Future high-volume tier |
 
-Stripe integration hooks are scaffolded in `BillingService` — connect `activateSubscription` and `cancelSubscription` to your Stripe webhook handler.
+**Stripe integration hooks** are scaffolded in `BillingService`:
+- `activateSubscription()` — call from Stripe webhook on `invoice.paid`
+- `cancelSubscription()` — call from Stripe webhook on `customer.subscription.deleted`
 
-## API Examples
+---
 
-### Register
+## Deploy to Railway
+
+1. Create Railway project → **Add PostgreSQL** plugin
+2. Railway auto-injects `DATABASE_URL` — no DB config needed
+3. Set these env vars in Railway dashboard:
+   - `JWT_SECRET` = `$(openssl rand -hex 32)`
+   - `NODE_ENV` = `production`
+   - `CORS_ORIGIN` = `https://yourdomain.com`
+4. Connect this repo — Railway detects `Dockerfile` and builds automatically
+5. Health check is configured at `GET /health` (see `railway.toml`)
+
+---
+
+## API Quick Reference
+
 ```bash
-curl -X POST http://localhost:3000/auth/register \
+BASE=http://localhost:3000
+
+# Health
+curl $BASE/health
+
+# Register
+curl -X POST $BASE/auth/register \
   -H 'Content-Type: application/json' \
-  -d '{"email":"user@example.com","password":"password123","name":"Alice"}'
-```
+  -d '{"email":"you@example.com","password":"password123","name":"You"}'
 
-### Login
-```bash
-curl -X POST http://localhost:3000/auth/login \
+# Login → get token
+TOKEN=$(curl -s -X POST $BASE/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"email":"user@example.com","password":"password123"}'
-```
+  -d '{"email":"you@example.com","password":"password123"}' | \
+  python3 -c "import sys,json; print(json.load(sys.stdin)['accessToken'])")
 
-### Create Project
-```bash
-curl -X POST http://localhost:3000/projects \
-  -H 'Authorization: Bearer <token>' \
+# Me
+curl $BASE/auth/me -H "Authorization: Bearer $TOKEN"
+
+# Create project
+PROJECT=$(curl -s -X POST $BASE/projects \
+  -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"name":"My Site","description":"A landing page"}'
+  -d '{"name":"My Site"}')
+PROJECT_ID=$(echo $PROJECT | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+
+# List projects
+curl $BASE/projects -H "Authorization: Bearer $TOKEN"
+
+# Create page
+curl -X POST $BASE/projects/$PROJECT_ID/pages \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"Home","content":{"blocks":[]}}'
+
+# Publish
+curl -X POST $BASE/publish/project/$PROJECT_ID \
+  -H "Authorization: Bearer $TOKEN"
+
+# Billing
+curl $BASE/billing/subscription -H "Authorization: Bearer $TOKEN"
 ```
 
-### Publish Project
-```bash
-curl -X POST http://localhost:3000/publish/project/<projectId> \
-  -H 'Authorization: Bearer <token>'
+---
+
+## Project Structure
+
 ```
+src/
+├── main.ts                     # Bootstrap, Swagger, CORS, pipes
+├── app.module.ts               # Root module, TypeORM config
+├── data-source.ts              # TypeORM CLI data source (migrations)
+├── auth/                       # JWT auth, guards, decorators
+├── users/                      # User entity + profile management
+├── projects/                   # Project CRUD (user-scoped)
+├── pages/                      # Page CRUD (project-scoped)
+├── publish/                    # Publish logic (extensible)
+├── billing/                    # Subscription + plan management
+├── health/                     # GET /health
+├── common/utils/               # Shared utilities (slugify)
+└── database/
+    ├── seed.ts                 # Dev seed script
+    └── migrations/             # TypeORM migration files
+```
+
+---
+
+## Next Steps for Frontend / Dashboard Integration
+
+- [ ] Add `CORS_ORIGIN` to your actual frontend domain
+- [ ] Implement Stripe webhook endpoint → call `BillingService.activateSubscription()`
+- [ ] Add `@Roles(UserRole.ADMIN)` guard for admin-only routes
+- [ ] Add refresh token endpoint when access tokens expire
+- [ ] Add `content` schema validation once page builder format is finalized
+- [ ] Generate TypeORM migrations before disabling `synchronize` in production
+- [ ] Add rate limiting (`@nestjs/throttler`) before going public

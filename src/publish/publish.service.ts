@@ -19,11 +19,11 @@ export class PublishService {
     // Load project with pages — also verifies ownership
     const project = await this.projectsService.findOneWithPages(projectId, userId);
 
-    // Mark project as published
     const resolvedSlug = project.slug || slugify(project.name);
-    await this.projectsService.update(projectId, userId, { slug: resolvedSlug });
-
     const publishedUrl = `/sites/${resolvedSlug}`;
+
+    // Persist published state + URL on the project record
+    await this.projectsService.markPublished(projectId, userId, publishedUrl);
 
     return {
       status: 'published',
@@ -34,6 +34,4 @@ export class PublishService {
       timestamp: new Date().toISOString(),
     };
   }
-
 }
-

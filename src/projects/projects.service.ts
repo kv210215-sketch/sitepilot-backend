@@ -62,5 +62,13 @@ export class ProjectsService {
     await this.projectRepository.remove(project);
   }
 
+  /** Internal — called by PublishService to stamp publish result on the project. */
+  async markPublished(id: string, userId: string, publishedUrl: string): Promise<Project> {
+    const project = await this.findOne(id, userId);
+    project.isPublished = true;
+    project.publishedUrl = publishedUrl;
+    project.slug = project.slug || slugify(project.name);
+    return this.projectRepository.save(project);
+  }
 }
 
