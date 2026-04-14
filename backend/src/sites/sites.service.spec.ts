@@ -115,4 +115,48 @@ describe('SitesService', () => {
       await expect(service.findOne('non-existent', mockUser)).rejects.toThrow(NotFoundException);
     });
   });
+
+  describe('update', () => {
+    it('should update a site for the owner', async () => {
+      const updatedSite = { ...mockSite, name: 'Updated Site' };
+      mockRepository.findOne.mockResolvedValue(mockSite);
+      mockRepository.save.mockResolvedValue(updatedSite);
+
+      const result = await service.update(mockSite.id, { name: 'Updated Site' }, mockUser);
+      expect(result).toEqual(updatedSite);
+    });
+
+    it('should throw ForbiddenException for non-owner', async () => {
+      mockRepository.findOne.mockResolvedValue(mockSite);
+      const otherUser = { ...mockUser, id: 'other-id' };
+
+      await expect(service.update(mockSite.id, { name: 'Hacked' }, otherUser)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+  });
+
+  describe('remove', () => {
+    it('should remove a site for the owner', async () => {
+      mockRepository.findOne.mockResolvedValue(mockSite);
+      mockRepository.remove.mockResolvedValue(mockSite);
+
+      await expect(service.remove(mockSite.id, mockUser)).resolves.toBeUndefined();
+      expect(mockRepository.remove).toHaveBeenCalledWith(mockSite);
+    });
+
+    it('should throw ForbiddenException for non-owner', async () => {
+      mockRepository.findOne.mockResolvedValue(mockSite);
+      const otherUser = { ...mockUser, id: 'other-id' };
+
+      await expect(service.remove(mockSite.id, otherUser)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should allow admin to remove any site', async () => {
+      mockRepository.findOne.mockResolvedValue(mockSite);
+      mockRepository.remove.mockResolvedValue(mockSite);
+
+      await expect(service.remove(mockSite.id, mockAdmin)).resolves.toBeUndefined();
+    });
+  });
 });

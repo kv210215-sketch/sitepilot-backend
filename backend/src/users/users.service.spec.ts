@@ -114,4 +114,48 @@ describe('UsersService', () => {
       expect(result).toEqual([mockUser]);
     });
   });
+
+  describe('update', () => {
+    it('should update a user successfully', async () => {
+      const updatedUser = { ...mockUser, firstName: 'Updated' };
+      mockRepository.findOne.mockResolvedValue(mockUser);
+      mockRepository.save.mockResolvedValue(updatedUser);
+
+      const result = await service.update(mockUser.id, { firstName: 'Updated' });
+      expect(result).toEqual(updatedUser);
+    });
+
+    it('should hash password when updating password', async () => {
+      mockRepository.findOne.mockResolvedValue(mockUser);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('newHashedPassword');
+      mockRepository.save.mockResolvedValue({ ...mockUser, password: 'newHashedPassword' });
+
+      await service.update(mockUser.id, { password: 'newPassword123' });
+      expect(bcrypt.hash).toHaveBeenCalledWith('newPassword123', 10);
+    });
+
+    it('should throw NotFoundException when updating non-existent user', async () => {
+      mockRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.update('non-existent-id', { firstName: 'Test' })).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('remove', () => {
+    it('should remove a user successfully', async () => {
+      mockRepository.findOne.mockResolvedValue(mockUser);
+      mockRepository.remove.mockResolvedValue(mockUser);
+
+      await expect(service.remove(mockUser.id)).resolves.toBeUndefined();
+      expect(mockRepository.remove).toHaveBeenCalledWith(mockUser);
+    });
+
+    it('should throw NotFoundException when removing non-existent user', async () => {
+      mockRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.remove('non-existent-id')).rejects.toThrow(NotFoundException);
+    });
+  });
 });
