@@ -6,6 +6,8 @@ export default registerAs('database', () => ({
   username: process.env.DB_USERNAME || 'postgres',
   password: process.env.DB_PASSWORD || 'postgres',
   name: process.env.DB_NAME || 'sitepilot',
-  synchronize: process.env.DB_SYNCHRONIZE === 'true' || false,
+  synchronize:
+    process.env.NODE_ENV !== 'production' &&
+    process.env.DB_SYNCHRONIZE === 'true',
   logging: process.env.DB_LOGGING === 'true' || false,
 }));
