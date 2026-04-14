@@ -27,7 +27,7 @@ services:
       NODE_ENV: production
       PORT: 3000
       DATABASE_URL: postgresql://sitepilot:sitepilot@postgres:5432/sitepilot
-      JWT_SECRET: change_me_in_production
+      JWT_SECRET: change_me_in_production  # Override with a strong secret via environment variable
       JWT_EXPIRES_IN: 7d
     depends_on:
       postgres:
