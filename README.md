@@ -77,9 +77,9 @@ docker compose up --build
 ```
 
 Services:
-- API → http://localhost:4000/api
+- API → http://localhost:3001/api
 - Frontend → http://localhost:3000
-- Health → http://localhost:4000/api/health
+- Health → http://localhost:3001/api/health
 
 ---
 

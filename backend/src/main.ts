@@ -27,7 +27,7 @@ async function bootstrap() {
 
   const port = config.get<number>('app.port') ?? 3001;
   const nodeEnv = config.get<string>('app.nodeEnv') ?? 'development';
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 
   const dbMode = process.env.DATABASE_URL ? 'DATABASE_URL' : 'discrete DB vars';
   console.log(`🚀 API running  → http://localhost:${port}/api`);
