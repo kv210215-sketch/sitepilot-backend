@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { TerminusModule } from '@nestjs/terminus';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthController } from './health/health.controller';
 import appConfig from './config/app.config';
-import databaseConfig from './config/database.config';
+import databaseConfig, { DatabaseConfig } from './config/database.config';
 import jwtConfig from './config/jwt.config';
 import { validateEnv } from './config/env.validation';
 
@@ -15,6 +16,15 @@ import { validateEnv } from './config/env.validation';
       isGlobal: true,
       validate: validateEnv,
       load: [appConfig, databaseConfig, jwtConfig],
+    }),
+    TypeOrmModule.forRootAsync({
+      useFactory: (config: ConfigService) => {
+        const db = config.get<DatabaseConfig>('database')!;
+        const mode = process.env.DATABASE_URL ? 'DATABASE_URL' : 'discrete DB vars';
+        console.log(`[TypeORM] Connecting via ${mode}`);
+        return db;
+      },
+      inject: [ConfigService],
     }),
     TerminusModule,
   ],

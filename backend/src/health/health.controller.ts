@@ -4,6 +4,7 @@ import {
   HealthCheck,
   HealthCheckService,
   MemoryHealthIndicator,
+  TypeOrmHealthIndicator,
 } from '@nestjs/terminus';
 
 @Controller('health')
@@ -14,6 +15,7 @@ export class HealthController {
   constructor(
     private health: HealthCheckService,
     private memory: MemoryHealthIndicator,
+    private db: TypeOrmHealthIndicator,
     private config: ConfigService,
   ) {
     const mb = 1024 * 1024;
@@ -25,6 +27,7 @@ export class HealthController {
   @HealthCheck()
   check() {
     return this.health.check([
+      () => this.db.pingCheck('database'),
       () => this.memory.checkHeap('memory_heap', this.heapThresholdBytes),
       () => this.memory.checkRSS('memory_rss',   this.rssThresholdBytes),
     ]);
