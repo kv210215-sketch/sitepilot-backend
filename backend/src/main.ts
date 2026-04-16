@@ -26,8 +26,14 @@ async function bootstrap() {
   });
 
   const port = config.get<number>('app.port') ?? 3001;
+  const nodeEnv = config.get<string>('app.nodeEnv') ?? 'development';
   await app.listen(port);
-  console.log(`🚀 API running on http://localhost:${port}/api`);
+
+  const dbMode = process.env.DATABASE_URL ? 'DATABASE_URL' : 'discrete DB vars';
+  console.log(`🚀 API running  → http://localhost:${port}/api`);
+  console.log(`   NODE_ENV     → ${nodeEnv}`);
+  console.log(`   DB config    → ${dbMode}`);
+  console.log(`   Health       → http://localhost:${port}/api/health`);
 }
 
 bootstrap().catch((err) => {

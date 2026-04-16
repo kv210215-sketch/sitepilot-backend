@@ -6,8 +6,8 @@ SaaS platform for website automation, SEO, and AI tools.
 
 | Layer    | Technology           |
 | -------- | -------------------- |
-| Backend  | NestJS 10 (Node 20)  |
-| Frontend | Next.js 14 (App Router) |
+| Backend  | NestJS 10 (Node 20)     |
+| Frontend | Next.js 15 (App Router) |
 | Database | PostgreSQL (Railway) |
 | Deploy   | Railway / Docker     |
 
@@ -60,7 +60,7 @@ sitepilot-backend/          ← repo root
 cd backend
 cp .env.example .env   # fill in values
 npm install
-npm run start:dev      # http://localhost:4000/api
+npm run start:dev      # http://localhost:3001/api
 
 # Frontend (new terminal)
 cd frontend
@@ -109,9 +109,34 @@ Copy the relevant `.env.example` files and fill in values:
 1. Push this repo to GitHub.
 2. Create a new Railway project → **Deploy from GitHub repo**.
 3. Railway auto-detects `railway.toml` and creates two services: **backend** and **frontend**.
-4. In each service → **Variables**, add the values from the matching `.env.example`.
-5. Add a **PostgreSQL** plugin to the project; Railway will inject `DATABASE_URL` automatically.
+4. Add a **PostgreSQL** plugin to the project; Railway will inject `DATABASE_URL` automatically.
+5. In each service → **Variables**, add the values below.
 6. Deploy.
+
+### Backend env vars (required)
+
+| Variable | Value |
+|---|---|
+| `NODE_ENV` | `production` |
+| `PORT` | injected by Railway automatically |
+| `DATABASE_URL` | injected by Railway PostgreSQL plugin |
+| `JWT_SECRET` | random string ≥ 32 chars (`openssl rand -hex 32`) |
+| `JWT_REFRESH_SECRET` | random string ≥ 32 chars (`openssl rand -hex 32`) |
+| `JWT_ACCESS_EXPIRES_IN` | `15m` |
+| `JWT_REFRESH_EXPIRES_IN` | `7d` |
+| `CORS_ORIGINS` | your frontend URL, e.g. `https://your-app.up.railway.app` |
+
+> **Alternative to `DATABASE_URL`**: set `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME` individually. `DATABASE_URL` takes precedence when both are present.
+
+### Startup log (confirm config mode)
+
+On boot the backend prints:
+```
+🚀 API running  → http://localhost:PORT/api
+   NODE_ENV     → production
+   DB config    → DATABASE_URL        ← or "discrete DB vars"
+   Health       → http://localhost:PORT/api/health
+```
 
 The `railway.toml` sets the healthcheck paths so Railway knows when each service is ready:
 - Backend: `GET /api/health`
@@ -133,11 +158,10 @@ npm run lint         # ESLint
 
 ## Architecture notes & improvements
 
-- **Validation** – `ValidationPipe` is enabled globally with `whitelist: true`; all DTOs should use `class-validator` decorators.
-- **Config** – `@nestjs/config` loads `.env` globally; add a `config/` module with Joi/Zod validation for strict env checks before startup.
+- **Config** – `@nestjs/config` loads `.env` globally; typed config factories with fail-fast env validation are in `src/config/`.
 - **Auth** – JWT scaffold is included in `package.json`. Add a `PassportModule` + `JwtStrategy` in `src/auth/`.
-- **Database** – Add `@nestjs/typeorm` (or Prisma) and connect via `DATABASE_URL`.
+- **Database** – `@nestjs/typeorm` + `typeorm` + `pg` are connected via `TypeOrmModule.forRootAsync`. Supports `DATABASE_URL` or discrete `DB_*` vars. SSL enabled only in production.
 - **Frontend API calls** – `next.config.js` rewrites `/api/*` to the backend, so the frontend never exposes the API URL to the browser.
-- **Health check** – `@nestjs/terminus` checks memory; extend with `TypeOrmHealthIndicator` once a DB is wired up.
-- **CORS** – Locked to `FRONTEND_URL`; update this variable per environment.
+- **Health check** – `@nestjs/terminus` checks memory heap, RSS, and DB connectivity (`TypeOrmHealthIndicator`) at `GET /api/health`.
+- **CORS** – Configured via `CORS_ORIGINS` env var (comma-separated list); defaults to `http://localhost:3000`.
 
