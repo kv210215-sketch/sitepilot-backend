@@ -10,7 +10,7 @@ export default registerAs('database', (): DatabaseConfig => {
   const base = {
     type: 'postgres' as const,
     autoLoadEntities: true,
-    synchronize: false,
+    synchronize: !isProduction,
     ssl,
   };
 
