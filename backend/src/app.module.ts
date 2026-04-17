@@ -5,6 +5,7 @@ import { TerminusModule } from '@nestjs/terminus';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthController } from './health/health.controller';
+import { AuthModule } from './auth/auth.module';
 import appConfig from './config/app.config';
 import databaseConfig, { DatabaseConfig } from './config/database.config';
 import jwtConfig from './config/jwt.config';
@@ -12,6 +13,7 @@ import { validateEnv } from './config/env.validation';
 
 @Module({
   imports: [
+    AuthModule,
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateEnv,
