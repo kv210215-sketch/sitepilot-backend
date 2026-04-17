@@ -5,7 +5,6 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Attach JWT token from localStorage on every request
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('sitepilot_token');
@@ -14,13 +13,14 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// On 401 — clear auth and redirect to login
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
+      // Clear all auth storage on expired/invalid token
       localStorage.removeItem('sitepilot_token');
-      localStorage.removeItem('sitepilot_user');
+      localStorage.removeItem('sitepilot-auth');
+      document.cookie = 'sitepilot_token=; path=/; max-age=0';
       window.location.href = '/login';
     }
     return Promise.reject(error);

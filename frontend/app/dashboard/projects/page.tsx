@@ -69,7 +69,7 @@ export default function ProjectsPage() {
                     </span>
                   </div>
                   {p.description && <p className="text-sm text-gray-500 line-clamp-2">{p.description}</p>}
-                  {p.domain && <p className="mt-2 text-xs text-gray-400">{p.domain}</p>}
+                  {p.slug && <p className="mt-2 text-xs text-gray-400">/{p.slug}</p>}
                 </CardBody>
               </Card>
             </a>

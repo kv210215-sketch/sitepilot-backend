@@ -72,7 +72,7 @@ export default function DashboardPage() {
                 <li key={p.id} className="flex items-center justify-between py-2.5">
                   <div>
                     <a href={`/dashboard/projects/${p.id}`} className="text-sm font-medium text-gray-900 hover:text-blue-600">{p.name}</a>
-                    {p.domain && <p className="text-xs text-gray-400">{p.domain}</p>}
+                    {p.slug && <p className="text-xs text-gray-400">/{p.slug}</p>}
                   </div>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${p.isPublished ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                     {p.isPublished ? 'Published' : 'Draft'}

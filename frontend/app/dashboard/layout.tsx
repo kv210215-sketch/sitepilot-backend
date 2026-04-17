@@ -3,16 +3,23 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
+import { PageLoader } from '@/components/ui/Spinner';
 import { useAuthStore } from '@/store/auth.store';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { token } = useAuthStore();
+  const { token, _hasHydrated } = useAuthStore();
 
   useEffect(() => {
-    if (!token) router.replace('/login');
-  }, [token, router]);
+    if (_hasHydrated && !token) {
+      router.replace('/login');
+    }
+  }, [_hasHydrated, token, router]);
 
+  // Show loader until Zustand rehydrates from localStorage
+  if (!_hasHydrated) return <PageLoader />;
+
+  // After hydration, if no token: redirect is in flight, render nothing
   if (!token) return null;
 
   return (

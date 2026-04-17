@@ -78,7 +78,7 @@ export default function ProjectDetailPage() {
         <div>
           <h2 className="text-2xl font-bold text-gray-900">{project.name}</h2>
           {project.description && <p className="text-sm text-gray-500 mt-1">{project.description}</p>}
-          {project.domain && <p className="text-xs text-gray-400 mt-0.5">{project.domain}</p>}
+          {project.slug && <p className="text-xs text-gray-400 mt-0.5">/{project.slug}</p>}
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => setShowEdit(true)}><Pencil size={15} className="mr-1" />Edit</Button>

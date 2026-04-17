@@ -27,6 +27,16 @@ export class UsersService {
     return user;
   }
 
+  async findByIdWithPassword(id: string): Promise<User> {
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .where('user.id = :id', { id })
+      .getOne();
+    if (!user) throw new NotFoundException('User not found');
+    return user;
+  }
+
   async findAll(): Promise<User[]> {
     return this.userRepository.find();
   }
@@ -35,6 +45,10 @@ export class UsersService {
     const user = await this.findById(id);
     Object.assign(user, updateUserDto);
     return this.userRepository.save(user);
+  }
+
+  async updatePassword(id: string, hashedPassword: string): Promise<void> {
+    await this.userRepository.update(id, { password: hashedPassword });
   }
 
   async remove(id: string): Promise<void> {

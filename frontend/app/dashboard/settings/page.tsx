@@ -8,7 +8,7 @@ import { authApi } from '@/lib/api/auth';
 import { useAuthStore } from '@/store/auth.store';
 
 export default function SettingsPage() {
-  const { user, setAuth, token } = useAuthStore();
+  const { user, setUser } = useAuthStore();
   const [name, setName]         = useState(user?.name ?? '');
   const [email, setEmail]       = useState(user?.email ?? '');
   const [saving, setSaving]     = useState(false);
@@ -22,7 +22,7 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       const updated = await authApi.updateProfile({ name, email });
-      if (token && updated) setAuth(token, updated);
+      if (updated) setUser(updated);
       toast.success('Profile updated');
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Update failed');

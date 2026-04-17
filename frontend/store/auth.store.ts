@@ -4,25 +4,27 @@ import { persist } from 'zustand/middleware';
 import type { User } from '@/types';
 
 interface AuthState {
-  user:      User | null;
-  token:     string | null;
-  isLoading: boolean;
-  setAuth:   (token: string, user: User) => void;
-  setUser:   (user: User) => void;
-  logout:    () => void;
+  user:         User | null;
+  token:        string | null;
+  _hasHydrated: boolean;
+  setAuth:      (token: string, user: User) => void;
+  setUser:      (user: User) => void;
+  logout:       () => void;
+  setHasHydrated: (v: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      user:      null,
-      token:     null,
-      isLoading: false,
+      user:         null,
+      token:        null,
+      _hasHydrated: false,
+
+      setHasHydrated: (v) => set({ _hasHydrated: v }),
 
       setAuth: (token, user) => {
         if (typeof window !== 'undefined') {
           localStorage.setItem('sitepilot_token', token);
-          // Also set a cookie so middleware can read it for server-side protection
           document.cookie = `sitepilot_token=${token}; path=/; max-age=${7 * 24 * 3600}; SameSite=Lax`;
         }
         set({ token, user });
@@ -41,6 +43,15 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'sitepilot-auth',
       partialize: (state) => ({ token: state.token, user: state.user }),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.setHasHydrated(true);
+          // Keep localStorage sitepilot_token in sync with persisted token
+          if (state.token && typeof window !== 'undefined') {
+            localStorage.setItem('sitepilot_token', state.token);
+          }
+        }
+      },
     },
   ),
 );
