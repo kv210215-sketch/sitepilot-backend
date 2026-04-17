@@ -6,7 +6,8 @@ import type { Page, CreatePagePayload } from '@/types';
 
 interface Props {
   initial?: Partial<Page>;
-  onSubmit: (data: CreatePagePayload) => Promise<void>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onSubmit: (data: any) => Promise<void>;
   onCancel: () => void;
   submitLabel?: string;
 }

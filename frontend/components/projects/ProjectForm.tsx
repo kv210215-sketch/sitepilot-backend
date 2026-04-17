@@ -6,7 +6,8 @@ import type { Project, CreateProjectPayload } from '@/types';
 
 interface Props {
   initial?: Partial<Project>;
-  onSubmit: (data: CreateProjectPayload) => Promise<void>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onSubmit: (data: any) => Promise<void>;
   onCancel: () => void;
   submitLabel?: string;
 }

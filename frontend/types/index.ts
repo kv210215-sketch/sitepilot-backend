@@ -19,9 +19,11 @@ export interface Project {
   name: string;
   description: string | null;
   slug: string | null;
+  domain: string | null;
   userId: string;
   isPublished: boolean;
   publishedUrl: string | null;
+  pages?: Page[];
   createdAt: string;
   updatedAt: string;
 }

@@ -9,4 +9,10 @@ export const authApi = {
     api.post<AuthResponse>('/auth/login', data).then((r) => r.data),
 
   me: () => api.get<User>('/auth/me').then((r) => r.data),
+
+  updateProfile: (data: { name?: string; email?: string }) =>
+    api.patch<User>('/auth/me', data).then((r) => r.data),
+
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    api.patch('/auth/me/password', data).then((r) => r.data),
 };
