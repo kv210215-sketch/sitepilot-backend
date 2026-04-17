@@ -40,8 +40,8 @@ import { HealthModule } from './health/health.module';
           ...base,
           host: config.get<string>('DB_HOST') || 'localhost',
           port: parseInt(config.get<string>('DB_PORT') || '5432', 10),
-          username: config.get<string>('DB_USER') || 'postgres',
-          password: config.get<string>('DB_PASSWORD') || 'postgres',
+          username: config.get<string>('DB_USER') || 'sitepilot',
+          password: config.get<string>('DB_PASSWORD') || 'sitepilot',
           database: config.get<string>('DB_NAME') || 'sitepilot',
         };
       },

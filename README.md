@@ -125,21 +125,36 @@ Click **Authorize** → enter your `Bearer <token>` to test protected routes int
 
 ## Database
 
-### Schema sync (development)
-`synchronize: true` in dev — TypeORM auto-syncs schema on startup. Fine for development.
+### Development
+`NODE_ENV=development` → `synchronize: true` — TypeORM auto-syncs schema on every restart.
+No need to run migrations manually in local dev.
 
-### Migrations (production)
-`synchronize: false` when `NODE_ENV=production`. Use:
+### Production (Railway)
+`NODE_ENV=production` → `synchronize: false`. Migrations run automatically via `railway.toml`:
+```
+startCommand = "node dist/database/run-migrations && node dist/main"
+```
+This runs `dist/database/run-migrations.js` before the app starts, applying any pending migrations.
+The initial migration (`1776200624919-InitialSchema.ts`) creates all tables on a fresh DB.
 
+### Migration workflow for schema changes
 ```bash
-# Generate migration after entity changes
-npm run db:migrate:generate --name=AddColumnToProjects
+# 1. Change entity files
+# 2. Generate migration (uses an empty DB to diff)
+DB_NAME=sitepilot_empty npm run db:migrate:generate --name=AddColumnToProjects
 
-# Apply
+# 3. Review the generated file in src/database/migrations/
+# 4. Apply to dev DB (if dev DB is not fresh)
 npm run db:migrate:run
 
-# Rollback
+# 5. Rollback if needed
 npm run db:migrate:revert
+```
+
+### Stamping an existing DB (sync → migration switch)
+If the DB was previously created via `synchronize: true`, stamp the migration as applied:
+```sql
+INSERT INTO migrations (timestamp, name) VALUES (1776200624919, 'InitialSchema1776200624919');
 ```
 
 ---
