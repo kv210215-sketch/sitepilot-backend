@@ -2,7 +2,8 @@
  * Development seed script.
  * Creates a demo admin user + project + page if they don't already exist.
  *
- * Usage: npm run db:seed
+ * Usage:
+ *   SEED_ADMIN_EMAIL=admin@example.com SEED_ADMIN_PASSWORD=<secure-value> npm run db:seed
  */
 import 'reflect-metadata';
 import * as dotenv from 'dotenv';
@@ -12,6 +13,21 @@ import { AppDataSource } from '../data-source';
 
 dotenv.config();
 
+function getSeedAdminCredentials() {
+  const email = process.env.SEED_ADMIN_EMAIL || 'admin@sitepilot.local';
+  const seedSecret = process.env.SEED_ADMIN_PASSWORD;
+
+  if (!seedSecret) {
+    throw new Error('SEED_ADMIN_PASSWORD environment variable is required to seed an admin user');
+  }
+
+  if (seedSecret.length < 12) {
+    throw new Error('SEED_ADMIN_PASSWORD must be at least 12 characters long');
+  }
+
+  return { email, seedSecret };
+}
+
 async function seed(ds: DataSource) {
   const userRepo = ds.getRepository('users');
   const projectRepo = ds.getRepository('projects');
@@ -19,17 +35,17 @@ async function seed(ds: DataSource) {
   const subscriptionRepo = ds.getRepository('subscriptions');
 
   // ── Seed user ─────────────────────────────────────────────────────────────
-  const email = 'admin@sitepilot.local';
+  const { email, seedSecret } = getSeedAdminCredentials();
   let user = await userRepo.findOne({ where: { email } });
 
   if (!user) {
-    const hashed = await bcrypt.hash('password123', 10);
+    const hashed = await bcrypt.hash(seedSecret, 10);
     user = await userRepo.save(
       userRepo.create({ email, password: hashed, name: 'Admin', role: 'admin' }),
     );
-    console.log(`✓ Created user: ${email}  /  password: password123`);
+    console.log(`✓ Created seed admin user: ${email}`);
   } else {
-    console.log(`→ User already exists: ${email}`);
+    console.log(`→ Seed admin user already exists: ${email}`);
   }
 
   // ── Seed subscription ──────────────────────────────────────────────────────
@@ -75,7 +91,7 @@ async function seed(ds: DataSource) {
   }
 
   console.log('\n✓ Seed complete.');
-  console.log(`  Login: ${email}  /  password123`);
+  console.log(`  Login: ${email}`);
 }
 
 AppDataSource.initialize()
