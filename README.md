@@ -45,9 +45,9 @@ sudo -u postgres psql -c "CREATE USER sitepilot WITH PASSWORD 'sitepilot';"
 sudo -u postgres psql -c "CREATE DATABASE sitepilot OWNER sitepilot;"
 
 # Clone, install, seed
-cp .env.example .env    # already configured for local postgres
+cp .env.example .env
 npm install
-npm run db:seed         # creates admin@sitepilot.local / password123
+SEED_ADMIN_PASSWORD='local-seed-password-min-12-chars' npm run db:seed
 npm run start:dev       # http://localhost:3000
 ```
 
@@ -58,7 +58,7 @@ cp .env.example .env
 npm install
 npm run dev:db          # starts postgres container (docker compose)
 # wait ~5 seconds for postgres to be healthy
-npm run db:seed
+SEED_ADMIN_PASSWORD='local-seed-password-min-12-chars' npm run db:seed
 npm run start:dev
 ```
 
@@ -85,7 +85,7 @@ npm run dev:up          # start all services (postgres)
 npm run dev:down        # stop all containers
 
 # Database
-npm run db:seed         # seed demo user + project + page
+npm run db:seed         # seed demo user + project + page; requires SEED_ADMIN_PASSWORD
 npm run db:migrate:run  # run pending TypeORM migrations
 npm run db:migrate:revert    # revert last migration
 # npm run db:migrate:generate --name=MigrationName  # generate new migration
@@ -95,23 +95,25 @@ npm run db:migrate:revert    # revert last migration
 
 ## Environment Variables
 
-Copy `.env.example` to `.env`. All defaults work for local dev out of the box.
+Copy `.env.example` to `.env`. See `docs/environment.md` for the production requirements and guardrails.
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `PORT` | no | `3000` | HTTP port |
 | `NODE_ENV` | no | `development` | `development` or `production` |
-| `DATABASE_URL` | Railway | — | Full postgres URL (Railway auto-injects) |
-| `DB_HOST` | local | `localhost` | Postgres host |
-| `DB_PORT` | local | `5432` | Postgres port |
-| `DB_USER` | local | `sitepilot` | Postgres username |
-| `DB_PASSWORD` | local | `sitepilot` | Postgres password |
-| `DB_NAME` | local | `sitepilot` | Database name |
-| `JWT_SECRET` | **required** | *(placeholder)* | **Change before production!** |
-| `JWT_EXPIRES_IN` | no | `7d` | Token lifetime |
-| `CORS_ORIGIN` | no | `*` | Frontend origin(s), comma-separated |
+| `DATABASE_URL` | production option | — | Full postgres URL, often injected by Railway |
+| `DB_HOST` | production if no `DATABASE_URL` | `localhost` in local dev | Postgres host |
+| `DB_PORT` | production if no `DATABASE_URL` | `5432` | Postgres port |
+| `DB_USER` | production if no `DATABASE_URL` | `sitepilot` in local dev | Postgres username |
+| `DB_PASSWORD` | production if no `DATABASE_URL` | `sitepilot` in local dev | Postgres password |
+| `DB_NAME` | production if no `DATABASE_URL` | `sitepilot` in local dev | Database name |
+| `JWT_SECRET` | **required** | — | Strong JWT signing secret |
+| `JWT_EXPIRES_IN` | production | `7d` in local dev | Token lifetime |
+| `CORS_ORIGIN` | production | `*` in local dev | Frontend origin(s), comma-separated |
+| `SEED_ADMIN_PASSWORD` | only for `npm run db:seed` | — | Seed admin password, minimum 12 characters |
+| `SEED_ADMIN_EMAIL` | no | `admin@sitepilot.local` | Seed admin email |
 
-> **Before production:** generate a secure JWT_SECRET with `openssl rand -hex 32`
+> **Before production:** generate a secure JWT_SECRET with `openssl rand -hex 32`.
 
 ---
 
@@ -205,6 +207,7 @@ Subscription
 2. Railway auto-injects `DATABASE_URL` — no DB config needed
 3. Set these env vars in Railway dashboard:
    - `JWT_SECRET` = `$(openssl rand -hex 32)`
+   - `JWT_EXPIRES_IN` = `7d` or your chosen token lifetime
    - `NODE_ENV` = `production`
    - `CORS_ORIGIN` = `https://yourdomain.com`
 4. Connect this repo — Railway detects `Dockerfile` and builds automatically
