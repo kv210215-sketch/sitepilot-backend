@@ -14,7 +14,17 @@ export class HealthController {
   @Get()
   @ApiOperation({ summary: 'Health check — returns app and DB status' })
   async check() {
-    const dbOk = this.dataSource.isInitialized;
+    let dbOk = false;
+
+    try {
+      if (this.dataSource.isInitialized) {
+        await this.dataSource.query('SELECT 1');
+        dbOk = true;
+      }
+    } catch {
+      dbOk = false;
+    }
+
     return {
       status: dbOk ? 'ok' : 'degraded',
       timestamp: new Date().toISOString(),
