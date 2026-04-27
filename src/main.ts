@@ -4,6 +4,16 @@ import { ValidationPipe, ClassSerializerInterceptor, Logger } from '@nestjs/comm
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
+function getCorsOrigin(): string {
+  const corsOrigin = process.env.CORS_ORIGIN;
+
+  if (process.env.NODE_ENV === 'production' && !corsOrigin) {
+    throw new Error('CORS_ORIGIN environment variable is required in production');
+  }
+
+  return corsOrigin || '*';
+}
+
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule, {
@@ -11,7 +21,7 @@ async function bootstrap() {
   });
 
   // ── CORS ────────────────────────────────────────────────────────────────────
-  const corsOrigin = process.env.CORS_ORIGIN || '*';
+  const corsOrigin = getCorsOrigin();
   app.enableCors({
     origin: corsOrigin === '*' ? true : corsOrigin.split(',').map((o) => o.trim()),
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
