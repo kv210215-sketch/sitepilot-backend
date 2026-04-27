@@ -23,10 +23,17 @@ import { BillingModule } from '../billing/billing.module';
           throw new Error('JWT_SECRET environment variable is required');
         }
 
+        const isProduction = config.get<string>('NODE_ENV') === 'production';
+        const jwtExpiresIn = config.get<string>('JWT_EXPIRES_IN');
+
+        if (isProduction && !jwtExpiresIn) {
+          throw new Error('JWT_EXPIRES_IN environment variable is required in production');
+        }
+
         return {
           secret: jwtSecret,
           signOptions: {
-            expiresIn: config.get<string>('JWT_EXPIRES_IN') || '7d',
+            expiresIn: jwtExpiresIn || '7d',
           },
         };
       },
