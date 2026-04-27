@@ -1,0 +1,12 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# Runs pending TypeORM migrations before starting the app.
+# On Railway, DATABASE_URL is injected automatically by the postgres plugin.
+startCommand = "node dist/database/run-migrations && node dist/main"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
