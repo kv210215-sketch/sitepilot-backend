@@ -9,6 +9,16 @@ import { PublishModule } from './publish/publish.module';
 import { BillingModule } from './billing/billing.module';
 import { HealthModule } from './health/health.module';
 
+function getRequiredConfig(config: ConfigService, key: string): string {
+  const value = config.get<string>(key);
+
+  if (!value) {
+    throw new Error(`${key} environment variable is required in production`);
+  }
+
+  return value;
+}
+
 @Module({
   imports: [
     // Load .env globally
@@ -36,13 +46,19 @@ import { HealthModule } from './health/health.module';
           return { ...base, url: databaseUrl };
         }
 
+        const host = isProduction ? getRequiredConfig(config, 'DB_HOST') : config.get<string>('DB_HOST') || 'localhost';
+        const port = parseInt(config.get<string>('DB_PORT') || '5432', 10);
+        const username = isProduction ? getRequiredConfig(config, 'DB_USER') : config.get<string>('DB_USER') || 'sitepilot';
+        const password = isProduction ? getRequiredConfig(config, 'DB_PASSWORD') : config.get<string>('DB_PASSWORD') || 'sitepilot';
+        const database = isProduction ? getRequiredConfig(config, 'DB_NAME') : config.get<string>('DB_NAME') || 'sitepilot';
+
         return {
           ...base,
-          host: config.get<string>('DB_HOST') || 'localhost',
-          port: parseInt(config.get<string>('DB_PORT') || '5432', 10),
-          username: config.get<string>('DB_USER') || 'sitepilot',
-          password: config.get<string>('DB_PASSWORD') || 'sitepilot',
-          database: config.get<string>('DB_NAME') || 'sitepilot',
+          host,
+          port,
+          username,
+          password,
+          database,
         };
       },
     }),
