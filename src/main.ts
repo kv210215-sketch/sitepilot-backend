@@ -1,13 +1,14 @@
 import 'reflect-metadata';
 import { NestFactory, Reflector } from '@nestjs/core';
-import { ValidationPipe, ClassSerializerInterceptor, Logger } from '@nestjs/common';
+import { ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { AppLoggerService } from './common/logger/app-logger.service';
 
-// Crash on unhandled promise rejections — silent swallowing hides bugs.
 process.on('unhandledRejection', (reason: unknown) => {
   console.error('[FATAL] Unhandled promise rejection:', reason);
   process.exit(1);
@@ -21,75 +22,74 @@ function getCorsOrigin(): string {
   return corsOrigin || '*';
 }
 
-function logStartupDiagnostics(logger: Logger): void {
+function logStartupDiagnostics(logger: AppLoggerService): void {
   const env = process.env.NODE_ENV || 'development';
   const dbMode = process.env.DATABASE_URL
     ? 'DATABASE_URL (Railway)'
     : `${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || '5432'}/${process.env.DB_NAME || 'sitepilot'}`;
 
-  logger.log('────────────────────────────────────────────');
-  logger.log('  SitePilot Backend — Startup Diagnostics');
-  logger.log('────────────────────────────────────────────');
-  logger.log(`  NODE_ENV        : ${env}`);
-  logger.log(`  PORT            : ${process.env.PORT || '3000'}`);
-  logger.log(`  Database        : ${dbMode}`);
-  logger.log(`  JWT_SECRET      : ${process.env.JWT_SECRET ? 'set ✓' : 'MISSING ✗'}`);
-  logger.log(`  JWT_REFRESH_SEC : ${process.env.JWT_REFRESH_SECRET ? 'set ✓' : 'fallback (dev)'}`);
-  logger.log(`  CORS_ORIGIN     : ${process.env.CORS_ORIGIN || '*'}`);
-  logger.log(`  Throttle        : ${process.env.THROTTLE_LIMIT || '100'} req / ${process.env.THROTTLE_TTL || '60000'}ms`);
-  logger.log(`  synchronize     : ${env !== 'production'}`);
-  logger.log('────────────────────────────────────────────');
+  const mem = process.memoryUsage();
+  const heapUsedMb = (mem.heapUsed / 1024 / 1024).toFixed(1);
+  const heapTotalMb = (mem.heapTotal / 1024 / 1024).toFixed(1);
+  const rssMb = (mem.rss / 1024 / 1024).toFixed(1);
+
+  const line = '────────────────────────────────────────────';
+  logger.log(line, 'Bootstrap');
+  logger.log('  SitePilot Backend — Startup Diagnostics', 'Bootstrap');
+  logger.log(line, 'Bootstrap');
+  logger.log(`  NODE_ENV        : ${env}`, 'Bootstrap');
+  logger.log(`  NODE_VERSION    : ${process.version}`, 'Bootstrap');
+  logger.log(`  PORT            : ${process.env.PORT || '3000'}`, 'Bootstrap');
+  logger.log(`  Database        : ${dbMode}`, 'Bootstrap');
+  logger.log(`  JWT_SECRET      : ${process.env.JWT_SECRET ? 'set ✓' : 'MISSING ✗'}`, 'Bootstrap');
+  logger.log(`  JWT_REFRESH_SEC : ${process.env.JWT_REFRESH_SECRET ? 'set ✓' : 'fallback (dev)'}`, 'Bootstrap');
+  logger.log(`  CORS_ORIGIN     : ${process.env.CORS_ORIGIN || '*'}`, 'Bootstrap');
+  logger.log(`  Throttle        : ${process.env.THROTTLE_LIMIT || '100'} req / ${process.env.THROTTLE_TTL || '60000'}ms`, 'Bootstrap');
+  logger.log(`  synchronize     : ${env !== 'production'}`, 'Bootstrap');
+  logger.log(`  Memory (startup): heap ${heapUsedMb}/${heapTotalMb} MB  rss ${rssMb} MB`, 'Bootstrap');
+  logger.log(line, 'Bootstrap');
 
   if (env !== 'production') {
-    logger.warn('synchronize=true is active — TypeORM will auto-alter schema on every start');
+    logger.warn('synchronize=true is active — TypeORM will auto-alter schema on every start', 'Bootstrap');
   }
   if (!process.env.JWT_REFRESH_SECRET && env === 'production') {
-    logger.error('JWT_REFRESH_SECRET is not set — refresh tokens use a derived fallback (insecure in production!)');
+    logger.error(
+      'JWT_REFRESH_SECRET is not set — refresh tokens use a derived fallback (insecure in production!)',
+      undefined,
+      'Bootstrap',
+    );
   }
 }
 
 async function bootstrap() {
-  const logger = new Logger('Bootstrap');
+  const appLogger = new AppLoggerService();
 
   const app = await NestFactory.create(AppModule, {
-    logger: [
-      'error',
-      'warn',
-      'log',
-      ...(process.env.NODE_ENV !== 'production' ? (['debug', 'verbose'] as const) : []),
-    ],
+    logger: appLogger,
   });
 
-  // ── Graceful shutdown (drains in-flight requests before exit) ─────────────
   app.enableShutdownHooks();
 
-  // ── Trust Railway / cloud proxy (needed for correct IP in rate limiting) ──
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
-  // ── HTTP security headers ───────────────────────────────────────────
   app.use(
     helmet({
-      // Disable CSP in dev so Swagger UI loads without issues
       contentSecurityPolicy: process.env.NODE_ENV === 'production',
     }),
   );
 
-  // ── Cookie parsing (needed for refresh token extraction) ────────────────
   app.use(cookieParser());
 
-  // ── CORS ─────────────────────────────────────────────────────────────
   const corsOrigin = getCorsOrigin();
   app.enableCors({
     origin: corsOrigin === '*' ? true : corsOrigin.split(',').map((o) => o.trim()),
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true, // required for cookie transport
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
+    credentials: true,
   });
 
-  // ── Global exception filter — consistent JSON error envelope ─────────────
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  // ── Global validation ────────────────────────────────────────────────
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -98,10 +98,11 @@ async function bootstrap() {
     }),
   );
 
-  // ── Serialize responses (@Exclude fields) ────────────────────────────
-  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+  app.useGlobalInterceptors(
+    new ClassSerializerInterceptor(app.get(Reflector)),
+    new LoggingInterceptor(),
+  );
 
-  // ── Swagger (development only) ──────────────────────────────────────
   if (process.env.NODE_ENV !== 'production') {
     const swaggerConfig = new DocumentBuilder()
       .setTitle('SitePilot API')
@@ -113,15 +114,16 @@ async function bootstrap() {
     SwaggerModule.setup('api/docs', app, document, {
       swaggerOptions: { persistAuthorization: true },
     });
-    logger.log('Swagger docs available at /api/docs');
+    appLogger.log('Swagger docs available at /api/docs', 'Bootstrap');
   }
 
-  logStartupDiagnostics(logger);
+  logStartupDiagnostics(appLogger);
 
   const port = parseInt(process.env.PORT || '3000', 10);
   await app.listen(port, '0.0.0.0');
-  logger.log(
+  appLogger.log(
     `SitePilot backend running on http://localhost:${port} [${process.env.NODE_ENV || 'development'}]`,
+    'Bootstrap',
   );
 }
 

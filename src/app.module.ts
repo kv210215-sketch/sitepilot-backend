@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -11,6 +11,7 @@ import { PublishModule } from './publish/publish.module';
 import { BillingModule } from './billing/billing.module';
 import { HealthModule } from './health/health.module';
 import { validateEnv } from './common/config/env.validation';
+import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 
 function getRequiredConfig(config: ConfigService, key: string): string {
   const value = config.get<string>(key);
@@ -20,15 +21,12 @@ function getRequiredConfig(config: ConfigService, key: string): string {
 
 @Module({
   imports: [
-    // Load .env and validate required variables at startup before any module inits
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
       validate: validateEnv,
     }),
 
-    // Rate limiting — configurable via THROTTLE_TTL / THROTTLE_LIMIT env vars
-    // Default: 100 requests per 60 seconds per IP
     ThrottlerModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -40,7 +38,6 @@ function getRequiredConfig(config: ConfigService, key: string): string {
       ],
     }),
 
-    // TypeORM — supports DATABASE_URL (Railway) or individual DB_* params
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
@@ -87,8 +84,11 @@ function getRequiredConfig(config: ConfigService, key: string): string {
     HealthModule,
   ],
   providers: [
-    // Apply ThrottlerGuard globally to every route
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(RequestIdMiddleware).forRoutes('*');
+  }
+}
