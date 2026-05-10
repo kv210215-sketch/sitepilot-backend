@@ -8,6 +8,7 @@ import { PagesModule } from './pages/pages.module';
 import { PublishModule } from './publish/publish.module';
 import { BillingModule } from './billing/billing.module';
 import { HealthModule } from './health/health.module';
+import { validateEnv } from './common/config/env.validation';
 
 function getRequiredConfig(config: ConfigService, key: string): string {
   const value = config.get<string>(key);
@@ -21,13 +22,14 @@ function getRequiredConfig(config: ConfigService, key: string): string {
 
 @Module({
   imports: [
-    // Load .env globally
+    // Load .env and validate required variables at startup
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+      validate: validateEnv,
     }),
 
-    // TypeORM with dynamic config — supports DATABASE_URL (Railway) or individual params
+    // TypeORM — supports DATABASE_URL (Railway) or individual DB_* params
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
@@ -37,20 +39,31 @@ function getRequiredConfig(config: ConfigService, key: string): string {
         const base = {
           type: 'postgres' as const,
           autoLoadEntities: true,
-          synchronize: !isProduction, // use migrations in production
+          synchronize: !isProduction,
           ssl: databaseUrl && isProduction ? { rejectUnauthorized: false } : false,
           logging: !isProduction,
+          // Retry on transient connection failures (e.g. DB slow to start on Railway)
+          retryAttempts: 10,
+          retryDelay: 3000,
         };
 
         if (databaseUrl) {
           return { ...base, url: databaseUrl };
         }
 
-        const host = isProduction ? getRequiredConfig(config, 'DB_HOST') : config.get<string>('DB_HOST') || 'localhost';
+        const host = isProduction
+          ? getRequiredConfig(config, 'DB_HOST')
+          : config.get<string>('DB_HOST') || 'localhost';
         const port = parseInt(config.get<string>('DB_PORT') || '5432', 10);
-        const username = isProduction ? getRequiredConfig(config, 'DB_USER') : config.get<string>('DB_USER') || 'sitepilot';
-        const password = isProduction ? getRequiredConfig(config, 'DB_PASSWORD') : config.get<string>('DB_PASSWORD') || 'sitepilot';
-        const database = isProduction ? getRequiredConfig(config, 'DB_NAME') : config.get<string>('DB_NAME') || 'sitepilot';
+        const username = isProduction
+          ? getRequiredConfig(config, 'DB_USER')
+          : config.get<string>('DB_USER') || 'sitepilot';
+        const password = isProduction
+          ? getRequiredConfig(config, 'DB_PASSWORD')
+          : config.get<string>('DB_PASSWORD') || 'sitepilot';
+        const database = isProduction
+          ? getRequiredConfig(config, 'DB_NAME')
+          : config.get<string>('DB_NAME') || 'sitepilot';
 
         return {
           ...base,
