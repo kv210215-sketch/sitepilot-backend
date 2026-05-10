@@ -1,8 +1,10 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { InjectDataSource } from '@nestjs/typeorm';
+import { SkipThrottle } from '@nestjs/throttler';
 import { DataSource } from 'typeorm';
 
+@SkipThrottle() // health endpoint must always be reachable by Railway's healthcheck
 @ApiTags('Health')
 @Controller('health')
 export class HealthController {

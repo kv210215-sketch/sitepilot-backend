@@ -5,6 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { BillingService } from '../billing/billing.service';
@@ -13,15 +14,32 @@ import { LoginDto } from './dto/login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 
+export interface TokenPair {
+  accessToken: string;
+  refreshToken: string;
+}
+
 @Injectable()
 export class AuthService {
+  private readonly refreshSecret: string;
+  private readonly refreshExpiresIn: string;
+
   constructor(
     private readonly usersService: UsersService,
     private readonly billingService: BillingService,
     private readonly jwtService: JwtService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    // In production, JWT_REFRESH_SECRET must equal a distinct value (ENV validation enforces this).
+    // In development, fall back to secret+suffix to allow local starts without extra config.
+    const refreshSecret = configService.get<string>('JWT_REFRESH_SECRET');
+    this.refreshSecret =
+      refreshSecret ||
+      (configService.get<string>('JWT_SECRET') ?? '') + '-refresh-dev-only';
+    this.refreshExpiresIn = configService.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '7d';
+  }
 
-  async register(registerDto: RegisterDto) {
+  async register(registerDto: RegisterDto): Promise<TokenPair & { user: any }> {
     const existing = await this.usersService.findByEmail(registerDto.email);
     if (existing) throw new ConflictException('Email already in use');
 
@@ -33,19 +51,19 @@ export class AuthService {
 
     await this.billingService.createSubscription(user.id);
 
-    const token = this.signToken(user);
-    return { accessToken: token, user: this.sanitize(user) };
+    const tokens = this.generateTokenPair({ sub: user.id, email: user.email, role: user.role });
+    return { ...tokens, user: this.sanitize(user) };
   }
 
-  async login(loginDto: LoginDto) {
+  async login(loginDto: LoginDto): Promise<TokenPair & { user: any }> {
     const user = await this.usersService.findByEmail(loginDto.email);
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
     const valid = await bcrypt.compare(loginDto.password, user.password);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
 
-    const token = this.signToken(user);
-    return { accessToken: token, user: this.sanitize(user) };
+    const tokens = this.generateTokenPair({ sub: user.id, email: user.email, role: user.role });
+    return { ...tokens, user: this.sanitize(user) };
   }
 
   async getMe(userId: string) {
@@ -72,8 +90,25 @@ export class AuthService {
     return { message: 'Password updated successfully' };
   }
 
-  private signToken(user: { id: string; email: string; role: string }) {
-    return this.jwtService.sign({ sub: user.id, email: user.email, role: user.role });
+  /**
+   * Issues a fresh access token from a validated JWT payload.
+   * Called by the refresh endpoint after JwtRefreshGuard validates the cookie.
+   */
+  refreshAccessToken(payload: { sub: string; email: string; role: string }): string {
+    return this.jwtService.sign({ sub: payload.sub, email: payload.email, role: payload.role });
+  }
+
+  /**
+   * Generates both an access token and a refresh token for the given payload.
+   * Access token uses the primary JWT_SECRET; refresh token uses JWT_REFRESH_SECRET.
+   */
+  generateTokenPair(payload: { sub: string; email: string; role: string }): TokenPair {
+    const accessToken = this.jwtService.sign(payload);
+    const refreshToken = this.jwtService.sign(payload, {
+      secret: this.refreshSecret,
+      expiresIn: this.refreshExpiresIn,
+    });
+    return { accessToken, refreshToken };
   }
 
   private sanitize(user: any) {
