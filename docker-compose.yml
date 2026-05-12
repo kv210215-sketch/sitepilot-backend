@@ -21,6 +21,34 @@ services:
       retries: 10
       start_period: 10s
 
+  backend:
+    build:
+      context: .
+      target: runtime
+    image: sitepilot-backend:local
+    container_name: sitepilot-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: sitepilot
+      DB_PASSWORD: sitepilot
+      DB_NAME: sitepilot
+      JWT_SECRET: ${JWT_SECRET:-local-docker-jwt-secret-123456789012}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-local-docker-refresh-secret-123456789012}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3001}
+      THROTTLE_TTL: ${THROTTLE_TTL:-60000}
+      THROTTLE_LIMIT: ${THROTTLE_LIMIT:-100}
+    ports:
+      - '3000:3000'
+
   # Uncomment to add pgAdmin for DB management UI (available at localhost:5050)
   # pgadmin:
   #   image: dpage/pgadmin4:latest

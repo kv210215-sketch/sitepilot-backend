@@ -1,11 +1,11 @@
 /**
  * Global Jest setup — runs once before all E2E suites.
- * Boots the test database: applies migrations from scratch on sitepilot_test.
+ * Boots the isolated test database: applies migrations from scratch.
  * Never touches the development (sitepilot) database.
  */
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
-import { getTestDataSourceOptions } from './helpers/db.helper';
+import { ensureTestDatabase, getTestDataSourceOptions } from './helpers/db.helper';
 
 export default async function globalSetup(): Promise<void> {
   process.env.NODE_ENV = 'test';
@@ -13,10 +13,13 @@ export default async function globalSetup(): Promise<void> {
   const ds = new DataSource(getTestDataSourceOptions());
 
   try {
+    await ensureTestDatabase();
     await ds.initialize();
     await ds.runMigrations({ transaction: 'each' });
-    console.log('\n[test:setup] Migrations applied to sitepilot_test ✓');
+    console.log('\n[test:setup] Migrations applied to isolated test database ✓');
   } finally {
-    await ds.destroy();
+    if (ds.isInitialized) {
+      await ds.destroy();
+    }
   }
 }

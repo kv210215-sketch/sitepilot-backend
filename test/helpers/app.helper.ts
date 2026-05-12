@@ -1,20 +1,20 @@
 /**
  * Bootstrap a full NestJS application for E2E tests.
  *
- * Uses the real AppModule wired to sitepilot_test via TEST_DATABASE_URL.
+ * Uses the real AppModule wired to an isolated test database via TEST_DATABASE_URL.
  * The app starts on a random port — callers receive the supertest agent.
  */
-import { INestApplication, ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import { ClassSerializerInterceptor, INestApplication, ValidationPipe } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { Test, TestingModule } from '@nestjs/testing';
 import { ThrottlerStorage } from '@nestjs/throttler';
 import cookieParser from 'cookie-parser';
-import request, { type Test as SuperTest } from 'supertest';
-import type { Agent } from 'supertest';
+import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../../src/app.module';
 import { AllExceptionsFilter } from '../../src/common/filters/all-exceptions.filter';
 import { LoggingInterceptor } from '../../src/common/interceptors/logging.interceptor';
+import { setTestEnv } from '../set-test-env';
 import { truncateAll } from './db.helper';
 
 export interface TestApp {
@@ -25,27 +25,6 @@ export interface TestApp {
   rawRequest: any;
   dataSource: DataSource;
   close: () => Promise<void>;
-}
-
-/**
- * Set test environment variables before module compilation.
- * Must be called before createTestApp().
- */
-export function setTestEnv(): void {
-  process.env.NODE_ENV = 'test';
-  process.env.JWT_SECRET = 'test-jwt-secret-exactly-32-chars!!';
-  process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-32-chars-ok!!';
-  process.env.JWT_EXPIRES_IN = '15m';
-  process.env.CORS_ORIGIN = 'http://localhost:3001';
-  process.env.THROTTLE_TTL = '60000';
-  process.env.THROTTLE_LIMIT = '1000'; // high limit so tests never hit rate limit
-  // Override DB to test database — never touch sitepilot (dev)
-  delete process.env.DATABASE_URL;
-  process.env.DB_HOST = 'localhost';
-  process.env.DB_PORT = '5432';
-  process.env.DB_USER = 'sitepilot';
-  process.env.DB_PASSWORD = 'sitepilot';
-  process.env.DB_NAME = 'sitepilot_test';
 }
 
 export async function createTestApp(): Promise<TestApp> {

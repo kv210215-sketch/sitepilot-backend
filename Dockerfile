@@ -1,36 +1,41 @@
-FROM node:20-alpine AS builder
+ARG NODE_VERSION=20-bookworm-slim
+
+FROM node:${NODE_VERSION} AS deps
 
 WORKDIR /app
 
 COPY package*.json .npmrc ./
-RUN npm ci
+RUN npm ci --include=dev
 
-COPY . .
-RUN npm run build
+FROM node:${NODE_VERSION} AS builder
 
-# --- Production image ---
-FROM node:20-alpine AS production
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY package*.json nest-cli.json tsconfig*.json ./
+COPY src ./src
+RUN npm run build && npm prune --omit=dev
+
+FROM node:${NODE_VERSION} AS runtime
 
 ENV NODE_ENV=production
+ENV PORT=3000
 
 WORKDIR /app
 
-COPY package*.json .npmrc ./
-RUN npm ci --omit=dev && npm cache clean --force
-
+COPY package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 
-# Create non-root user and set ownership before switching to it
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup \
+RUN groupadd --system appgroup \
+    && useradd --system --gid appgroup --create-home appuser \
     && chown -R appuser:appgroup /app
 
 USER appuser
 
 EXPOSE 3000
 
-# Docker-native healthcheck — used by Railway and local docker run
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD node -e \
-    "const h=require('http');h.get('http://localhost:3000/health',r=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))"
+  CMD node -e "const h=require('http');h.get('http://127.0.0.1:3000/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
 
-CMD ["node", "dist/main"]
+CMD ["sh", "-c", "node dist/database/run-migrations.js && node dist/main.js"]

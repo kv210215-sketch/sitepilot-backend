@@ -43,10 +43,12 @@ All protected routes require `Authorization: Bearer <token>` header.
 service postgresql start
 sudo -u postgres psql -c "CREATE USER sitepilot WITH PASSWORD 'sitepilot';"
 sudo -u postgres psql -c "CREATE DATABASE sitepilot OWNER sitepilot;"
+sudo -u postgres psql -c "CREATE DATABASE sitepilot_test OWNER sitepilot;"   # optional CI-style DB
 
 # Clone, install, seed
 cp .env.example .env
 npm install
+npm run db:migrate:run
 SEED_ADMIN_PASSWORD='local-seed-password-min-12-chars' npm run db:seed
 npm run start:dev       # http://localhost:3000
 ```
@@ -56,16 +58,14 @@ npm run start:dev       # http://localhost:3000
 ```bash
 cp .env.example .env
 npm install
-npm run dev:db          # starts postgres container (docker compose)
-# wait ~5 seconds for postgres to be healthy
-SEED_ADMIN_PASSWORD='local-seed-password-min-12-chars' npm run db:seed
-npm run start:dev
+npm run docker:up       # starts postgres + backend with migration-first production boot
+curl http://localhost:3000/health
 ```
 
 ### Fastest test (2 commands after npm install):
 
 ```bash
-npm run dev:db && sleep 5 && npm run start:dev
+npm install && npm run docker:up
 ```
 
 ---
@@ -76,6 +76,7 @@ npm run dev:db && sleep 5 && npm run start:dev
 # Development
 npm run start:dev       # start with hot-reload (dev)
 npm run start:prod      # run compiled output (production)
+npm run start:container # run production boot path: migrations, then app
 npm run dev             # alias for start:dev
 npm run build           # compile TypeScript → dist/
 
@@ -83,12 +84,20 @@ npm run build           # compile TypeScript → dist/
 npm run dev:db          # start postgres container only
 npm run dev:up          # start all services (postgres)
 npm run dev:down        # stop all containers
+npm run docker:build    # rebuild backend image from scratch
+npm run docker:up       # start postgres + backend via Docker Compose
+npm run docker:down     # stop backend + postgres
+npm run docker:reset    # stop compose stack and delete volumes
+npm run docker:logs     # inspect backend and postgres logs
 
 # Database
 npm run db:seed         # seed demo user + project + page; requires SEED_ADMIN_PASSWORD
 npm run db:migrate:run  # run pending TypeORM migrations
 npm run db:migrate:revert    # revert last migration
 # npm run db:migrate:generate --name=MigrationName  # generate new migration
+
+# E2E
+npm run test:e2e        # runs 67-test backend E2E suite against isolated DB
 ```
 
 ---
@@ -107,11 +116,15 @@ Copy `.env.example` to `.env`. See `docs/environment.md` for the production requ
 | `DB_USER` | production if no `DATABASE_URL` | `sitepilot` in local dev | Postgres username |
 | `DB_PASSWORD` | production if no `DATABASE_URL` | `sitepilot` in local dev | Postgres password |
 | `DB_NAME` | production if no `DATABASE_URL` | `sitepilot` in local dev | Database name |
+| `DB_SYNCHRONIZE` | no | `false` | Keep disabled for migration-first parity |
 | `JWT_SECRET` | **required** | — | Strong JWT signing secret |
+| `JWT_REFRESH_SECRET` | production | dev fallback outside production | Refresh token signing secret |
 | `JWT_EXPIRES_IN` | production | `7d` in local dev | Token lifetime |
+| `JWT_REFRESH_EXPIRES_IN` | no | `7d` | Refresh token lifetime |
 | `CORS_ORIGIN` | production | `*` in local dev | Frontend origin(s), comma-separated |
 | `SEED_ADMIN_PASSWORD` | only for `npm run db:seed` | — | Seed admin password, minimum 12 characters |
 | `SEED_ADMIN_EMAIL` | no | `admin@sitepilot.local` | Seed admin email |
+| `TEST_DATABASE_URL` | no | `postgresql://sitepilot:sitepilot@localhost:5432/sitepilot_backend` | Isolated E2E DB; CI can override to `sitepilot_test` |
 
 > **Before production:** generate a secure JWT_SECRET with `openssl rand -hex 32`.
 
@@ -130,6 +143,13 @@ Click **Authorize** → enter your `Bearer <token>` to test protected routes int
 ### Development
 `NODE_ENV=development` → `synchronize: true` — TypeORM auto-syncs schema on every restart.
 No need to run migrations manually in local dev.
+
+For reproducible production parity, prefer the explicit production boot path:
+
+```bash
+npm run build
+npm run start:container
+```
 
 ### Production (Railway)
 `NODE_ENV=production` → `synchronize: false`. Migrations run automatically via `railway.toml`:
@@ -157,6 +177,14 @@ npm run db:migrate:revert
 If the DB was previously created via `synchronize: true`, stamp the migration as applied:
 ```sql
 INSERT INTO migrations (timestamp, name) VALUES (1776200624919, 'InitialSchema1776200624919');
+```
+
+### Docker cold boot from zero
+```bash
+npm run docker:reset
+npm run docker:build
+npm run docker:up
+curl http://localhost:3000/health
 ```
 
 ---

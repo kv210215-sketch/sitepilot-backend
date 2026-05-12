@@ -6,3 +6,7 @@ dist
 coverage
 .git
 README.md
+frontend
+test
+docs
+*.md
