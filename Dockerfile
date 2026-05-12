@@ -12,7 +12,7 @@ FROM node:${NODE_VERSION} AS builder
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
-COPY package*.json nest-cli.json tsconfig*.json ./
+COPY package*.json .npmrc nest-cli.json tsconfig*.json ./
 COPY src ./src
 RUN npm run build && npm prune --omit=dev
 
