@@ -5,9 +5,9 @@
  * Usage:
  *   SEED_ADMIN_EMAIL=admin@example.com SEED_ADMIN_PASSWORD=<secure-value> npm run db:seed
  */
-import 'reflect-metadata';
+import * as bcrypt from 'bcryptjs';
 import * as dotenv from 'dotenv';
-import * as bcrypt from 'bcrypt';
+import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { AppDataSource } from '../data-source';
 

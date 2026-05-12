@@ -1,16 +1,15 @@
 /**
  * Bootstrap a full NestJS application for E2E tests.
  *
- * Uses the real AppModule wired to sitepilot_test via TEST_DATABASE_URL.
+ * Uses the real AppModule wired to an isolated test database via TEST_DATABASE_URL.
  * The app starts on a random port — callers receive the supertest agent.
  */
-import { INestApplication, ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import { ClassSerializerInterceptor, INestApplication, ValidationPipe } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { Test, TestingModule } from '@nestjs/testing';
 import { ThrottlerStorage } from '@nestjs/throttler';
 import cookieParser from 'cookie-parser';
-import request, { type Test as SuperTest } from 'supertest';
-import type { Agent } from 'supertest';
+import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../../src/app.module';
 import { AllExceptionsFilter } from '../../src/common/filters/all-exceptions.filter';
@@ -45,7 +44,7 @@ export function setTestEnv(): void {
   process.env.DB_PORT = '5432';
   process.env.DB_USER = 'sitepilot';
   process.env.DB_PASSWORD = 'sitepilot';
-  process.env.DB_NAME = 'sitepilot_test';
+  process.env.DB_NAME = 'sitepilot_backend';
 }
 
 export async function createTestApp(): Promise<TestApp> {

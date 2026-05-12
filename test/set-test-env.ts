@@ -13,4 +13,4 @@ process.env.DB_HOST = 'localhost';
 process.env.DB_PORT = '5432';
 process.env.DB_USER = 'sitepilot';
 process.env.DB_PASSWORD = 'sitepilot';
-process.env.DB_NAME = 'sitepilot_test';
+process.env.DB_NAME = 'sitepilot_backend';

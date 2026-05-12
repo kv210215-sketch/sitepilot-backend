@@ -24,7 +24,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm ci --include=dev --legacy-peer-deps
 
       - name: Validate required ENV vars are present
         env:
@@ -78,7 +78,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm ci --include=dev --legacy-peer-deps
 
       - name: Run E2E tests against sitepilot_test database
         env:
