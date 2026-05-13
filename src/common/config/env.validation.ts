@@ -57,6 +57,10 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
         }
       }
     }
+
+    if ((config['DB_SYNCHRONIZE'] as string | undefined)?.toLowerCase() === 'true') {
+      throw new Error('DB_SYNCHRONIZE=true is not allowed in production');
+    }
   }
 
   // ── THROTTLE config sanity ──────────────────────────────────────────────

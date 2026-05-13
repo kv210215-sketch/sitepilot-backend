@@ -1,22 +1,35 @@
-import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
-import { UsersModule } from './users/users.module';
-import { ProjectsModule } from './projects/projects.module';
-import { PagesModule } from './pages/pages.module';
-import { PublishModule } from './publish/publish.module';
 import { BillingModule } from './billing/billing.module';
-import { HealthModule } from './health/health.module';
 import { validateEnv } from './common/config/env.validation';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
+import { HealthModule } from './health/health.module';
+import { PagesModule } from './pages/pages.module';
+import { ProjectsModule } from './projects/projects.module';
+import { PublishModule } from './publish/publish.module';
+import { UsersModule } from './users/users.module';
 
 function getRequiredConfig(config: ConfigService, key: string): string {
   const value = config.get<string>(key);
   if (!value) throw new Error(`${key} environment variable is required in production`);
   return value;
+}
+
+function resolveSynchronize(config: ConfigService, isProduction: boolean): boolean {
+  if (isProduction) {
+    return false;
+  }
+
+  const raw = config.get<string>('DB_SYNCHRONIZE');
+  if (raw === undefined) {
+    return !isProduction;
+  }
+
+  return raw.toLowerCase() === 'true';
 }
 
 @Module({
@@ -43,11 +56,12 @@ function getRequiredConfig(config: ConfigService, key: string): string {
       useFactory: (config: ConfigService) => {
         const databaseUrl = config.get<string>('DATABASE_URL');
         const isProduction = config.get<string>('NODE_ENV') === 'production';
+        const synchronize = resolveSynchronize(config, isProduction);
 
         const base = {
           type: 'postgres' as const,
           autoLoadEntities: true,
-          synchronize: !isProduction,
+          synchronize,
           ssl: databaseUrl && isProduction ? { rejectUnauthorized: false } : false,
           logging: !isProduction,
           retryAttempts: 10,

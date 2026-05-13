@@ -1,9 +1,9 @@
-import 'reflect-metadata';
+import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
-import { ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
+import 'reflect-metadata';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
@@ -22,11 +22,24 @@ function getCorsOrigin(): string {
   return corsOrigin || '*';
 }
 
+function getSynchronizeMode(): boolean {
+  if (process.env.NODE_ENV === 'production') {
+    return false;
+  }
+
+  if (process.env.DB_SYNCHRONIZE === undefined) {
+    return (process.env.NODE_ENV || 'development') !== 'production';
+  }
+
+  return process.env.DB_SYNCHRONIZE.toLowerCase() === 'true';
+}
+
 function logStartupDiagnostics(logger: AppLoggerService): void {
   const env = process.env.NODE_ENV || 'development';
   const dbMode = process.env.DATABASE_URL
     ? 'DATABASE_URL (Railway)'
     : `${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || '5432'}/${process.env.DB_NAME || 'sitepilot'}`;
+  const synchronize = getSynchronizeMode();
 
   const mem = process.memoryUsage();
   const heapUsedMb = (mem.heapUsed / 1024 / 1024).toFixed(1);
@@ -45,11 +58,11 @@ function logStartupDiagnostics(logger: AppLoggerService): void {
   logger.log(`  JWT_REFRESH_SEC : ${process.env.JWT_REFRESH_SECRET ? 'set ✓' : 'fallback (dev)'}`, 'Bootstrap');
   logger.log(`  CORS_ORIGIN     : ${process.env.CORS_ORIGIN || '*'}`, 'Bootstrap');
   logger.log(`  Throttle        : ${process.env.THROTTLE_LIMIT || '100'} req / ${process.env.THROTTLE_TTL || '60000'}ms`, 'Bootstrap');
-  logger.log(`  synchronize     : ${env !== 'production'}`, 'Bootstrap');
+  logger.log(`  synchronize     : ${synchronize}`, 'Bootstrap');
   logger.log(`  Memory (startup): heap ${heapUsedMb}/${heapTotalMb} MB  rss ${rssMb} MB`, 'Bootstrap');
   logger.log(line, 'Bootstrap');
 
-  if (env !== 'production') {
+  if (synchronize) {
     logger.warn('synchronize=true is active — TypeORM will auto-alter schema on every start', 'Bootstrap');
   }
   if (!process.env.JWT_REFRESH_SECRET && env === 'production') {
