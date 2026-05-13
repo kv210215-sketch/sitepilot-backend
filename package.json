@@ -14,7 +14,7 @@
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/main.js",
     "start:container": "node dist/database/run-migrations.js && node dist/main.js",
     "dev": "npm run start:dev",
     "dev:safe": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/free-port-3000.ps1 && npm run start:dev",
