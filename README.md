@@ -50,7 +50,7 @@ cp .env.example .env
 npm install
 npm run db:migrate:run
 SEED_ADMIN_PASSWORD='local-seed-password-min-12-chars' npm run db:seed
-npm run start:dev       # http://localhost:3000
+npm run dev:safe        # frees stale local node/npm listener on :3000, then starts dev server
 ```
 
 ### Option B: Docker Compose
@@ -78,6 +78,7 @@ npm run start:dev       # start with hot-reload (dev)
 npm run start:prod      # run compiled output (production)
 npm run start:container # run production boot path: migrations, then app
 npm run dev             # alias for start:dev
+npm run dev:safe        # free stale local node/npm listener on :3000, then start dev server
 npm run build           # compile TypeScript → dist/
 
 # Docker
@@ -127,6 +128,21 @@ Copy `.env.example` to `.env`. See `docs/environment.md` for the production requ
 | `TEST_DATABASE_URL` | no | `postgresql://sitepilot:sitepilot@localhost:5432/sitepilot_backend` | Isolated E2E DB; CI can override to `sitepilot_test` |
 
 > **Before production:** generate a secure JWT_SECRET with `openssl rand -hex 32`.
+
+---
+
+## Safe Local Dev Startup
+
+For Windows local development, use `npm run dev:safe` when you want the backend to reclaim `localhost:3000` from a previous crashed or orphaned Nest dev process.
+
+What it does:
+
+- checks whether port `3000` has a listener;
+- stops only the listener if it is a local `node` or `npm` process;
+- refuses to kill unrelated processes and exits with a warning instead;
+- starts the regular Nest watch mode after the port is confirmed free.
+
+The script is local-development only and does not change production boot, Nest bootstrap, or Railway configuration.
 
 ---
 
