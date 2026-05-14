@@ -1,0 +1,45 @@
+name: SitePilot Deploy Check
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Wait for Render deploy
+        run: sleep 90
+
+      - name: Check backend health
+        run: |
+          for i in {1..10}; do
+            echo "Attempt $i: checking backend..."
+            if curl -fsS "$BACKEND_URL/health"; then
+              echo "Backend is healthy"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "Backend health check failed"
+          exit 1
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+
+      - name: Check frontend
+        run: |
+          for i in {1..10}; do
+            echo "Attempt $i: checking frontend..."
+            if curl -fsS "$FRONTEND_URL"; then
+              echo "Frontend is online"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "Frontend check failed"
+          exit 1
+        env:
+          FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
